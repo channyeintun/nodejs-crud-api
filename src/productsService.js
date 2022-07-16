@@ -2,7 +2,7 @@
 const lodash = require("lodash");
 const productsList = require("./products.json").products;
 const { isNullish } = require("./utils");
-const { v4 }=require("uuid"); 
+const { v4 } = require("uuid");
 
 const createProductSchema = {
       name: null,
@@ -30,78 +30,70 @@ const getProductsById = (productId, done) => {
       product = result.length ? JSON.stringify(result[0]) : null;
 
       return done(product ? null : JSON.stringify({
-            status: "404",
+            status: 404,
             error: "Not Found",
             message: "Todo item with id " + productId + " does not exist."
       }), product);
 }
 
 const saveProduct = (newProduct, done) => {
-      let savedProduct = null;
-
       //to check required fields
       newProduct = {
             ...createProductSchema,
-            ...newProduct
+            ...newProduct,
+            id: v4()
       }
 
       // check null value
       const isNull = isNullish(newProduct);
       if (!isNull) {
-            const count = productsList.push({
-                  id: v4(), // generate unique id using uuid4
-                  ...newProduct
-            });
-            savedProduct = JSON.stringify(productsList[count - 1]);
+            productsList.push(newProduct);
       }
 
       return done(isNull ? JSON.stringify({
-            status: "400",
+            status: 400,
             error: "Bad Request",
             message: "Properties cannot be null."
-      }) : null, savedProduct);
+      }) : null, JSON.stringify(productsList));
 }
 
 const updateProduct = (productToUpdate, done) => {
-      let updatedProduct = null;
       let isIndexExisted = null;
       //to check required fields
       productToUpdate = {
             ...updateProductSchema,
             ...productToUpdate
       }
-
-      // check null value
-      const isNull = isNullish(productToUpdate);
-      if (!isNull) {
-
-            const index = lodash.findIndex(productsList, productToUpdate);
-            isIndexExisted = index !== null && index !== undefined;
-            if (isIndexExisted) {
-                  productsList[index] = productToUpdate;
-                  updatedProduct = JSON.stringify(productsList[index]);
+      const index = lodash.findIndex(productsList, o => o.id === +productToUpdate.id);
+      isIndexExisted = index !== -1;
+      if (isIndexExisted) {
+            productToUpdate = {
+                  ...productsList[index],
+                  ...productToUpdate,
+                  id: productsList[index]["id"]
             }
+            productsList[index] = productToUpdate;
       }
 
-      const errorObj = isNull ? {
-            status: "400",
-            error: "Bad Request",
-            message: "Properties cannot be null or not found."
-      } : !isIndexExisted ? {
-            status: "404",
+      const errorObj = !isIndexExisted ? {
+            status: 404,
             error: "Not Found",
             message: "Item not found on the list."
       } : null;
 
-      return done(errorObj ? JSON.stringify(errorObj) : null, updatedProduct);
+      return done(errorObj ? JSON.stringify(errorObj) : null, JSON.stringify(productsList));
 }
 
 const deleteProduct = (productId, done) => {
       // delete a product
-      lodash.remove(productsList, function (o) {
+      const result = lodash.remove(productsList, function (o) {
             return o.id === +productId;
-      })
-      return done(null, JSON.stringify({ message: "Successful request" }));
+      });
+      return done(result.length === 0 ? JSON.stringify({
+            status: 400,
+            error: "Bad Request",
+            message: "Product does not exist."
+      }) : null, JSON.stringify(productsList));
 }
 
 
